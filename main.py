@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # Global service instances
 vector_db = VectorDB()
 clustering = ClusteringService()
-cache = SemanticCache(threshold=0.90)
+cache = SemanticCache(threshold=0.85)
 
 
 # --- Lifespan: Initialize all services on startup ---
@@ -141,8 +141,13 @@ async def query_endpoint(req: QueryRequest) -> Dict:
     cluster_info = clustering.predict_cluster(query_embedding)
     dominant_cluster = cluster_info["dominant_cluster"]
 
-    # Step 3: Check semantic cache
-    cache_result = cache.lookup(query_embedding, dominant_cluster)
+    # Step 3: Check semantic cache (search dominant + neighboring clusters)
+    # We search the top clusters from GMM to handle boundary cases where a
+    # rephrased query might be assigned to a neighboring cluster
+    search_clusters = [c["cluster_id"] for c in cluster_info["top_clusters"]]
+    if dominant_cluster not in search_clusters:
+        search_clusters.insert(0, dominant_cluster)
+    cache_result = cache.lookup(query_embedding, search_clusters)
 
     if cache_result is not None:
         # CACHE HIT
