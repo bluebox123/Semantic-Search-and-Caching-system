@@ -2,6 +2,8 @@
 
 A production-grade semantic search system built with FAISS, GMM fuzzy clustering, and a custom cluster-aware semantic cache, served via FastAPI.
 
+Hosted demo: https://semantic-search-and-caching-system-production-9436.up.railway.app/
+
 ## Architecture
 
 | Component | Technology | Purpose |
@@ -34,6 +36,38 @@ The first startup will:
 - Embed all documents (2-5 minutes on CPU)
 - Train the GMM clustering model
 - Launch the API server on http://127.0.0.1:8000
+
+## Try It (6 Sample Cache Tests)
+
+Use the dashboard and set the threshold to `0.45`.
+
+For each pair:
+- Run **Query A** first (expected **CACHE MISS**)
+- Then run **Query B** (expected **CACHE HIT**)
+
+### 1) Computers / OS troubleshooting
+- Query A (MISS): `my windows pc is very slow after a recent update`
+- Query B (HIT): `computer lagging since windows update how to fix`
+
+### 2) Hardware / laptop power issues
+- Query A (MISS): `laptop battery drains fast even when not using it`
+- Query B (HIT): `battery losing charge quickly while idle on my notebook`
+
+### 3) Autos / maintenance
+- Query A (MISS): `what causes a car engine to misfire at idle`
+- Query B (HIT): `engine runs rough and misfires when the car is stopped`
+
+### 4) Religion / debate framing
+- Query A (MISS): `is religion compatible with modern science`
+- Query B (HIT): `can scientific thinking coexist with faith`
+
+### 5) Politics / policy
+- Query A (MISS): `should governments ban hate speech`
+- Query B (HIT): `laws to restrict hateful speech by the state`
+
+### 6) Science / space
+- Query A (MISS): `why do astronauts experience weightlessness in orbit`
+- Query B (HIT): `how microgravity happens on a spacecraft around earth`
 
 ## API Endpoints
 
@@ -86,7 +120,9 @@ K-Means forces hard cluster assignments. A document about "gun legislation" belo
 ### Why custom cache instead of Redis?
 The problem statement explicitly requires a cache built from first principles. Our cache uses GMM cluster structure to partition entries, reducing lookup from O(N) to O(N/k).
 
-### Cache Threshold (0.90)
-- **0.98**: Near-identical rephrases only. High precision, low hit rate.
-- **0.90** (default): Semantically equivalent queries. Balanced.
-- **0.85**: Loosely related queries. High recall, risks off-topic results.
+### Cache Threshold (0.45)
+The threshold is intentionally tunable. With `all-MiniLM-L6-v2`, many valid paraphrases land in the `0.45–0.75` cosine similarity range.
+
+- **0.90+**: Very strict. Mostly catches near-identical wording.
+- **0.60–0.75**: Balanced for many paraphrases.
+- **0.45** (default): High recall for paraphrases with different vocabulary.
