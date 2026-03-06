@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>semantic_search — dashboard</title>
+    <meta name="description" content="Semantic Search & Caching System — FAISS + GMM + FastAPI">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⟩</text></svg>">
+</head>
+<body>
+    <div class="app-container">
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <span class="prompt">&gt;</span>
+                <span class="name">sem_search</span>
+            </div>
+
+            <nav class="nav-section">
+                <div class="nav-section-title">// interface</div>
+                <button class="nav-item active" onclick="document.getElementById('searchInput').focus()">
+                    <span class="nav-dot"></span>
+                    <span class="nav-label">search/</span>
+                </button>
+                <a class="nav-item" href="/clusters" target="_blank">
+                    <span class="nav-dot"></span>
+                    <span class="nav-label">clusters/</span>
+                </a>
+                <a class="nav-item" href="/cache/stats" target="_blank">
+                    <span class="nav-dot"></span>
+                    <span class="nav-label">cache/</span>
+                </a>
+                <a class="nav-item" href="/docs" target="_blank">
+                    <span class="nav-dot"></span>
+                    <span class="nav-label">api_docs/</span>
+                </a>
+            </nav>
+
+            <nav class="nav-section">
+                <div class="nav-section-title">// system</div>
+                <div class="nav-item warning">
+                    <span class="nav-dot"></span>
+                    <span class="nav-label">k={{ optimal_k }} clusters</span>
+                </div>
+                <div class="nav-item">
+                    <span class="nav-dot"></span>
+                    <span class="nav-label">{{ total_documents }} docs</span>
+                </div>
+            </nav>
+
+            <div class="sidebar-spacer"></div>
+
+            <div class="sidebar-bottom">
+                <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()">
+                    // switch to light
+                </button>
+                <div class="sidebar-status">
+                    <span class="status-dot-online"></span>
+                    <span class="status-text">system online — v1.0.0</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ========== MAIN CONTENT ========== -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1 class="page-title">&gt; search_dashboard</h1>
+                <p class="page-subtitle">// semantic query interface — 20_newsgroups corpus</p>
+            </div>
+
+            <!-- Search Box -->
+            <div class="search-box">
+                <span class="search-prompt">/</span>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder='enter semantic query... e.g. "government policy social welfare"'
+                    autocomplete="off"
+                >
+                <span class="search-threshold">[threshold: {{ threshold }}]</span>
+                <button id="searchBtn" class="search-btn" onclick="submitQuery()">$ query</button>
+            </div>
+
+            <!-- Metric Cards -->
+            <div class="metrics-row">
+                <div class="metric-card">
+                    <div class="metric-label">// cache_hit_rate</div>
+                    <div class="metric-value green" id="metricHitRate">—</div>
+                    <div class="metric-change" id="metricHitChange">no queries yet</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">// avg_lookup_time</div>
+                    <div class="metric-value cyan" id="metricAvgTime">—</div>
+                    <div class="metric-change">cache lookup only</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">// total_queries</div>
+                    <div class="metric-value default" id="metricTotalQueries">0</div>
+                    <div class="metric-change">hits + misses</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">// cached_entries</div>
+                    <div class="metric-value amber" id="metricEntries">0</div>
+                    <div class="metric-change">across {{ optimal_k }} clusters</div>
+                </div>
+            </div>
+
+            <!-- Content Panels -->
+            <div class="panels-row">
+                <!-- Terminal Output Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">// query_terminal</span>
+                        <div class="panel-header-spacer"></div>
+                        <span class="panel-badge">[live]</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="terminal-output" id="terminalOutput">
+                            <div class="terminal-line command">$ ready — awaiting query</div>
+                            <div class="terminal-line muted">  model: all-MiniLM-L6-v2 [{{ dimension }}-dim]</div>
+                            <div class="terminal-line muted">  index: faiss.IndexFlatIP [{{ total_documents }} vectors]</div>
+                            <div class="terminal-line muted">  clusters: gmm k={{ optimal_k }} [diag covariance]</div>
+                            <div class="terminal-line muted">  cache: threshold={{ threshold }} [O(N/k) lookup]</div>
+                            <div class="terminal-line command terminal-cursor">&gt; </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cache Inspector Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <span class="panel-title">// cache_inspector</span>
+                        <div class="panel-header-spacer"></div>
+                        <span class="panel-badge cyan">[live]</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="cache-entries" id="cacheEntries">
+                            <div class="empty-state">// no cached entries yet<br>submit a query to populate</div>
+                        </div>
+                        <button class="action-btn" onclick="clearCache()">$ DELETE /cache</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cluster Distribution (below panels) -->
+            <div class="panel" style="margin-top: 16px;">
+                <div class="panel-header">
+                    <span class="panel-title">// cluster_distribution [gmm k={{ optimal_k }}]</span>
+                    <div class="panel-header-spacer"></div>
+                    <span class="panel-badge">[active]</span>
+                </div>
+                <div class="panel-body">
+                    <div class="cluster-rows">
+                        {% for cluster in cluster_info %}
+                        {% set colors = ['green', 'cyan', 'amber'] %}
+                        {% set color = colors[loop.index0 % 3] %}
+                        <div class="cluster-row">
+                            <span class="cluster-label" title="{{ cluster.label }}">{{ cluster.label | truncate(14, True, '..') }}</span>
+                            <div class="cluster-bar-bg">
+                                <div class="cluster-bar {{ color }}" style="width: {{ (cluster.size / total_documents * 100) | round(1) }}%"></div>
+                            </div>
+                            <span class="cluster-pct">{{ (cluster.size / total_documents * 100) | round(1) }}%</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
