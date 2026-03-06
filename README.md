@@ -4,6 +4,9 @@ A production-grade semantic search system built with FAISS, GMM fuzzy clustering
 
 Hosted demo: https://semantic-search-and-caching-system-production-9436.up.railway.app/
 
+### Demo Video
+![Demo Video](assets/demo.webp)
+
 ## Architecture
 
 | Component | Technology | Purpose |
