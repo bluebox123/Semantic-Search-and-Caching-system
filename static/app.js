@@ -34,6 +34,11 @@ async function submitQuery() {
     const query = input.value.trim();
     if (!query) return;
 
+    const thresholdEl = document.querySelector('.search-threshold');
+    const thresholdText = thresholdEl ? thresholdEl.textContent : '';
+    const thresholdMatch = thresholdText.match(/\[threshold:\s*([0-9.]+)\]/i);
+    const threshold = thresholdMatch ? parseFloat(thresholdMatch[1]) : null;
+
     const btn = document.getElementById('searchBtn');
     const terminal = document.getElementById('terminalOutput');
     
@@ -42,7 +47,10 @@ async function submitQuery() {
 
     // Clear previous output and show progress
     terminal.innerHTML = '';
-    addTerminalLine('command', `$ query --model all-MiniLM-L6-v2 --threshold 0.90`);
+    addTerminalLine(
+        'command',
+        `$ query --model all-MiniLM-L6-v2${threshold !== null && !Number.isNaN(threshold) ? ` --threshold ${threshold.toFixed(2)}` : ''}`
+    );
     addTerminalLine('output', `> embedding query vector... [384-dim]`);
     addTerminalLine('muted', `  input: "${query}"`);
 
@@ -51,7 +59,7 @@ async function submitQuery() {
         const response = await fetch('/query', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ query, threshold })
         });
 
         const data = await response.json();

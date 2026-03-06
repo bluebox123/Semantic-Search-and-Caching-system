@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 scikit-learn
 sentence-transformers
+torch>=2.1.0
 faiss-cpu
 numpy
 pandas

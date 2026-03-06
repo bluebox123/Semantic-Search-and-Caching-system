@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # Global service instances
 vector_db = VectorDB()
 clustering = ClusteringService()
-cache = SemanticCache(threshold=0.85)
+cache = SemanticCache(threshold=0.45)
 
 
 # --- Lifespan: Initialize all services on startup ---
@@ -103,6 +103,7 @@ templates = Jinja2Templates(directory="templates")
 class QueryRequest(BaseModel):
     """Request body for POST /query"""
     query: str
+    threshold: float | None = None
 
 
 # --- API Endpoints ---
@@ -147,7 +148,7 @@ async def query_endpoint(req: QueryRequest) -> Dict:
     search_clusters = [c["cluster_id"] for c in cluster_info["top_clusters"]]
     if dominant_cluster not in search_clusters:
         search_clusters.insert(0, dominant_cluster)
-    cache_result = cache.lookup(query_embedding, search_clusters)
+    cache_result = cache.lookup(query_embedding, search_clusters, threshold=req.threshold)
 
     if cache_result is not None:
         # CACHE HIT
@@ -168,7 +169,10 @@ async def query_endpoint(req: QueryRequest) -> Dict:
         result_data = search_results[0] if search_results else {"text": "No results found", "score": 0.0}
 
         # Store in cache for future queries
-        cache.store(query_embedding, req.query, result_data, dominant_cluster)
+        store_clusters = [c["cluster_id"] for c in cluster_info["top_clusters"][:3]]
+        if dominant_cluster not in store_clusters:
+            store_clusters.insert(0, dominant_cluster)
+        cache.store_in_clusters(query_embedding, req.query, result_data, store_clusters)
 
         elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
         return {

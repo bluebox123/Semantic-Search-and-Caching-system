@@ -56,7 +56,7 @@ class SemanticCache:
     from GMM predict_proba) to handle boundary cases.
     """
 
-    def __init__(self, threshold: float = 0.85):
+    def __init__(self, threshold: float = 0.75):
         """
         Initialize the semantic cache.
 
@@ -77,7 +77,8 @@ class SemanticCache:
     def lookup(
         self,
         query_embedding: np.ndarray,
-        cluster_ids: List[int]
+        cluster_ids: List[int],
+        threshold: Optional[float] = None
     ) -> Optional[Dict]:
         """
         Check the cache for a semantically similar query.
@@ -96,6 +97,8 @@ class SemanticCache:
             Cache entry dict if hit (similarity >= threshold), else None
         """
         start_time = time.perf_counter()
+
+        effective_threshold = self.threshold if threshold is None else float(threshold)
 
         best_similarity = -1.0
         best_entry = None
@@ -117,7 +120,7 @@ class SemanticCache:
 
         elapsed = time.perf_counter() - start_time
 
-        if best_similarity >= self.threshold and best_entry is not None:
+        if best_similarity >= effective_threshold and best_entry is not None:
             self._hit_count += 1
             self._query_times.append(elapsed)
             return {
@@ -133,7 +136,7 @@ class SemanticCache:
             self._query_times.append(elapsed)
             logger.debug(
                 "Cache MISS — best similarity %.4f < threshold %.2f",
-                best_similarity, self.threshold
+                best_similarity, effective_threshold
             )
             return None
 
@@ -157,13 +160,29 @@ class SemanticCache:
             self._cache[dominant_cluster] = []
 
         self._cache[dominant_cluster].append(
-            (query_embedding, query_text, result, time.time())
+            (query_embedding.copy(), query_text, result, time.time())
         )
 
         logger.debug(
             "Cached query in cluster %d (cluster now has %d entries)",
             dominant_cluster, len(self._cache[dominant_cluster])
         )
+
+    def store_in_clusters(
+        self,
+        query_embedding: np.ndarray,
+        query_text: str,
+        result: Dict,
+        cluster_ids: List[int]
+    ) -> None:
+        """Store a cache entry in multiple cluster partitions."""
+        for cluster_id in cluster_ids:
+            if cluster_id not in self._cache:
+                self._cache[cluster_id] = []
+
+            self._cache[cluster_id].append(
+                (query_embedding.copy(), query_text, result, time.time())
+            )
 
     def get_stats(self) -> Dict:
         """

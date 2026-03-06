@@ -169,7 +169,6 @@ class ClusteringService:
         top_clusters = [
             {"cluster_id": int(idx), "probability": float(probs[idx])}
             for idx in sorted_indices[:5]
-            if probs[idx] > 0.01  # only include clusters with >1% membership
         ]
 
         return {
