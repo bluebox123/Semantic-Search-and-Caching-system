@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from typing import Dict
 import time
 import logging
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -36,7 +37,7 @@ logger = logging.getLogger(__name__)
 # Global service instances
 vector_db = VectorDB()
 clustering = ClusteringService()
-cache = SemanticCache(threshold=0.45)
+cache = SemanticCache(threshold=float(os.getenv("CACHE_THRESHOLD", "0.45")))
 
 
 # --- Lifespan: Initialize all services on startup ---
@@ -120,6 +121,18 @@ async def root(request: Request):
         "dimension": vector_db.dimension,
         "threshold": cache.threshold,
     })
+
+
+@app.get("/version")
+async def version() -> Dict:
+    """Return build/runtime metadata to verify the deployed version."""
+    return {
+        "git_commit": os.getenv("RAILWAY_GIT_COMMIT_SHA")
+        or os.getenv("GITHUB_SHA")
+        or os.getenv("COMMIT_SHA"),
+        "cache_threshold": cache.threshold,
+        "model": vector_db.model_name,
+    }
 
 
 @app.post("/query")
